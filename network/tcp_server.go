@@ -4,6 +4,7 @@ import(
 	"net"
 	"log"
 	"time"
+	"fmt"
 )
 type TCPServer struct{
 	ln		net.Listener
@@ -34,7 +35,7 @@ func (this *TCPServer) createConn() *TCPConn{
 }
 
 func(this *TCPServer) Start(port,backlog int) bool{
-	ln,err := net.Listen("tcp","127.0.0.1:8080")
+	ln,err := net.Listen("tcp","127.0.0.1:8888")
 	if err != nil{
 		log.Printf("Listen:%s",err)
 		return false
@@ -63,11 +64,16 @@ func(this *TCPServer) Start(port,backlog int) bool{
 				return
 			}
 			tempDelay = 0
-
+			
+			log.Println("new conn")
 			tcpConn := this.createConn()
 
 			tcpConn.Attach(conn)
 			tcpConn.Recv(this.OnConnRead)
+			
+			str := "77272367263"
+			tcpConn.Send([]byte(str))
+			tcpConn.Close()
 
 		}
 	}()
@@ -78,6 +84,9 @@ func(this *TCPServer) Start(port,backlog int) bool{
 
 func(this *TCPServer) OnConnRead(socketID uint32,buf []byte,err error){
 	if err != nil{
-		
+		fmt.Printf("close")
+		return
 	}
+
+	fmt.Printf("%s",string(buf))
 }

@@ -23,7 +23,7 @@ type TCPConn struct{
 
 	active bool
 
-	sendding bool
+	sendding,readding bool
 
 	mtx sync.Mutex
 }
@@ -35,6 +35,7 @@ func newTCPConn(bindIndex uint16) *TCPConn{
 		writeBuf : make([]byte, 0),
 		active : false,
 		sendding : false,
+		readding : false,
 	}
 }
 
@@ -54,6 +55,7 @@ func (this *TCPConn) Detach(){
 	this.conn = nil
 	this.readFunc = nil
 	this.sendding = false
+	this.readding = false
 }
 
 func (this *TCPConn) IsActive() bool{
@@ -69,11 +71,20 @@ func(this *TCPConn) Recv(cb ReadCallback){
 
 	go func(){
 
-		buf := make([]byte,1024)
-		n,err := this.reader.Read(buf)
-		buf = buf[0:n]
-		this.readFunc(this.GetScoketID(), buf,err)
+		for{
+			buf := make([]byte,1024)
 
+			this.readding = true
+			n,err := this.reader.Read(buf)
+			this.readding = false
+
+			buf = buf[0:n]
+			this.readFunc(this.GetScoketID(), buf,err)
+			
+			if err != nil{
+				return
+			}
+		}
 	}()	
 }
 func(this* TCPConn) Send(buf []byte) bool{
