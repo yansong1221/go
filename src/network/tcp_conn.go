@@ -38,6 +38,7 @@ func newTCPConn(bindIndex uint16) *TCPConn{
 		active : false,
 		sendding : false,
 		readding : false,
+		roundIndex : 1,
 	}
 }
 
@@ -51,6 +52,10 @@ func (this *TCPConn) Attach(conn net.Conn) {
 func (this *TCPConn) Detach(){
 
 	this.roundIndex++
+	if this.roundIndex == 0{
+		this.roundIndex++
+	}
+
 	this.active = false
 	this.reader = nil
 	this.writer = nil
@@ -131,6 +136,10 @@ func(this* TCPConn) Send(buf []byte) bool{
 }
 
 func(this *TCPConn) Close(){
+	if this.IsActive() == false{
+		return
+	}
+	
 	this.conn.Close()
 	this.wg.Wait()
 }

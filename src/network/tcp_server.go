@@ -106,7 +106,7 @@ func(this *TCPServer) Start(port int) bool{
 func(this *TCPServer) OnConnRead(socketID uint32,buf []byte,err error){
 	if err != nil{
 		this.handler.OnConnClose(socketID)
-		conn := this.GetConn(socketID)
+		conn := this.getConn(socketID)
 		if conn != nil{
 			conn.Detach()
 		}
@@ -115,7 +115,7 @@ func(this *TCPServer) OnConnRead(socketID uint32,buf []byte,err error){
 	this.handler.OnNewMessage(socketID,buf)
 }
 
-func(this *TCPServer)GetConn(socketID uint32) *TCPConn{
+func(this *TCPServer)getConn(socketID uint32) *TCPConn{
 
 	bindIndex  := (socketID & 0xffff0000) >> 16
 	roundIndex := socketID & 0x0000ffff
@@ -134,10 +134,30 @@ func(this *TCPServer)GetConn(socketID uint32) *TCPConn{
 func(this *TCPServer)Close(){
 
 	for _,conn := range this.conns{
-		if conn.IsActive(){
-			conn.Close()
-		}
+		conn.Close()
 	}
+
 	this.ln.Close()
 	this.wg.Wait()
+}
+
+func(this *TCPServer)SendData(socketID uint32, data []byte){
+
+	conn := this.getConn(socketID)
+
+	if conn == nil{
+		return
+	}
+
+	conn.Send(data)
+}
+
+func (this *TCPServer) CloseSocket(socketID uint32)  {
+
+	conn := this.getConn(socketID)
+
+	if conn == nil{
+		return
+	}
+	conn.Close();
 }
