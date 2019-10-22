@@ -5,7 +5,9 @@ import(
 )
 
 const(
-	THREAD_COMPLETE = iota
+	THREAD_COMPLETE int = iota
+	THREAD_CHILD_CONTIUNE
+	THREAD_MAIN_CONTIUNE
 )
 
  type ITask interface{
@@ -40,19 +42,18 @@ const(
 	go func(){
 
 		this.wg.Add(1)
+		defer this.wg.Done()
 
-		task.Run()
-
-		this.mtx.Lock()
-
-		defer func(){
-			this.mtx.Unlock()
-			this.wg.Done()
-		}() 
-
-		this.finshTask = append(this.finshTask,task)
-
+		task.Run() 
+		this.addFinshTask(task)
 	}()
+ }
+ func(this *ThreadPool) addFinshTask(task IThreadTask){
+
+	this.mtx.Lock()
+	defer this.mtx.Unlock()
+
+	this.finshTask = append(this.finshTask,task)
  }
  func(this *ThreadPool) Update(){
 
@@ -66,19 +67,22 @@ const(
 
 	this.mtx.Lock()
 
-	temp := make([]IThreadTask,0)
-	temp = this.finshTask
+	tempTask := make([]IThreadTask,len(this.finshTask))
+	copy(tempTask,this.finshTask)
 	this.finshTask = this.finshTask[0:0]
 
 	this.mtx.Unlock()
 
-	for _, task := range temp{
+	for _, task := range tempTask{
 		ret := task.PsentMainThread()
 		if THREAD_COMPLETE == ret{
+			
+		} else if THREAD_CHILD_CONTIUNE == ret{
 			this.AddTask(task)
-		}	
+		} else if THREAD_MAIN_CONTIUNE == ret{
+			this.addFinshTask(task)
+		}
 	}
-	
  }
 
  func(this* ThreadPool) Stop(){
