@@ -1,17 +1,21 @@
 package main
 
 import (
-	"./network"
+	"network"
 	"time"
+	"dispatch"
 )
 
 
 func main() {
 
-	tcpServer := network.NewTCPServer()
-	tcpServer.Start(0,0)
-
+	eventDispatch := dispatch.NewEventDispatch()
+	tcpServer := network.NewTCPServer(eventDispatch,1024)
+	
+	tcpServer.Start(8888)
+	 
 	for{
+		eventDispatch.Update()
 		time.Sleep(1)
 	}
 }
