@@ -5,6 +5,8 @@ import(
 	"bufio"
 	_"log"
 	"sync"
+	"encoding/binary"
+	"bytes"
 )
 
 type ReadCallback func(socketID uint32, buf []byte,err error)
@@ -85,18 +87,39 @@ func(this *TCPConn) Recv(cb ReadCallback){
 		defer this.wg.Done()
 
 		for{
-			buf := make([]byte,1024)
 
+			buf := make([]byte,1024)		
 			this.readding = true
 			n,err := this.reader.Read(buf)
 			this.readding = false
-
 			buf = buf[0:n]
-			this.readFunc(this.GetSocketID(), buf,err)
+
+			this.readBuf = append(this.readBuf,buf...)
 			
-			if err != nil{
+			if err == nil{
+				this.readFunc(this.GetSocketID(), nil,err)
 				return
 			}
+
+			
+			for len(this.readBuf) >= 4{
+
+				var dataLen uint32
+				err = binary.Read(bytes.NewReader(this.readBuf[0:4]),binary.LittleEndian,&dataLen)
+				if err != nil{
+					this.readFunc(this.GetSocketID(), nil,err)
+					return
+				}
+			
+				if len(this.readBuf) < int(dataLen + 4){
+					continue
+				}
+
+				data := this.readBuf[4:4 + dataLen]
+				this.readFunc(this.GetSocketID(), data,nil)
+				this.readBuf = this.readBuf[4 + dataLen:]
+			}
+
 		}
 		
 	}()	
@@ -104,8 +127,15 @@ func(this *TCPConn) Recv(cb ReadCallback){
 func(this* TCPConn) Send(buf []byte) bool{
 
 	if buf != nil{
+
+		lenBuf := new(bytes.Buffer)
+		binary.Write(lenBuf,binary.LittleEndian,uint32(len(buf)))
+
+		sendBuf := lenBuf.Bytes()
+		sendBuf = append(sendBuf,buf...)
+
 		this.mtx.Lock()
-		this.writeBuf = append(this.writeBuf,buf...)
+		this.writeBuf = append(this.writeBuf,sendBuf...)
 		this.mtx.Unlock()
 	}
 	

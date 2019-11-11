@@ -85,7 +85,7 @@ const(
 	}
  }
 
- func(this* ThreadPool) Stop(){
+ func(this* ThreadPool) Close(){
 
 	if this.runStatus == false{
 		return

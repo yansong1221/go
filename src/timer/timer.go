@@ -47,3 +47,6 @@ func(this *TimerManager) Update(){
 		}	
 	}
 }
+func(this *TimerManager) Close(){
+	this.times = this.times[0:0]
+}

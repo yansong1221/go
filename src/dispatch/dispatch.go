@@ -2,7 +2,17 @@ package dispatch
 
 import(
 	"sync"
+	"threadpool"
+	"timer"
 )
+
+type IEvent interface{
+
+	//网络事件
+	OnSocketConn(socketID uint32)
+	OnSocketMessage(socketID uint32,data []byte)
+	OnSocketClose(socketID uint32)
+}
 
 type NetDataQue struct{
 	dataType int
@@ -14,6 +24,11 @@ type EventDispatch struct{
 
 	netDataQue []*NetDataQue
 	netMtx		sync.Mutex
+	event  		IEvent
+
+
+	tp 			*threadpool.ThreadPool
+	tm 			*timer.TimerManager
 }
 
 const(
@@ -22,9 +37,12 @@ const(
 	NET_DATATYPE_CLOSE
 )
 
-func NewEventDispatch() *EventDispatch{
+func NewEventDispatch(e IEvent) *EventDispatch{
 	return &EventDispatch{
 		netDataQue : make([]*NetDataQue,0),
+		event : e,
+		tp : threadpool.New(),
+		tm : timer.New(),
 	}
 }
 
@@ -69,6 +87,31 @@ func (this *EventDispatch) Update()  {
 
 	this.netMtx.Unlock()
 
+	//网络事件
+	for _,data := range tempNetData{
+		switch data.dataType {
+		case NET_DATATYPE_NEWCONN:
+			this.event.OnSocketConn(data.socketID)
+		case NET_DATATYPE_NEWMESSAGE:
+			this.event.OnSocketMessage(data.socketID,data.data)
+		case NET_DATATYPE_CLOSE:
+			this.event.OnSocketClose(data.socketID)		
+		}
+	}
 	
+	this.tp.Update()
+	this.tm.Update()
+}
+func(this *EventDispatch) Close(){
+	this.netDataQue = this.netDataQue[0:0]
+	this.tp.Close()
+	this.tm.Close()
 }
 
+func(this *EventDispatch) GetTimer() *timer.TimerManager{
+	return this.tm
+}
+
+func(this *EventDispatch) GetThreadPool() *threadpool.ThreadPool{
+	return this.tp
+}
